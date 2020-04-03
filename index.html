@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    
+    <script>
+        // Ignore this in your implementation
+        window.isMbscDemo = true;
+    </script>
+
+    <title>Custom rendering with listview</title>
+
+    <!-- Mobiscroll JS and CSS Includes -->
+    <link rel="stylesheet" href="css/mobiscroll.javascript.min.css">
+    <script src="js/mobiscroll.javascript.min.js"></script>
+
+    <style type="text/css">
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    .md-listview-rendering-content {
+        padding: 16px 16px 0;
+        position: relative;
+    }
+    
+    .md-listview-rendering-date {
+        font-size: 15px;
+        color: #5e5e5e;
+        margin-bottom: 6px;
+    }
+    
+    .md-listview-rendering-title {
+        font-size: 18px;
+        margin-bottom: 4px;
+    }
+    
+    .md-hide-star {
+        display: none;
+    }
+    
+    .md-listview-rendering-icon {
+        color: #e0e040;
+        margin: 0 6px;
+    }
+    
+    .md-listview-rendering-loc {
+        font-size: 14px;
+        color: #5e5e5e;
+    }
+    
+    .md-listview-rendering-img {
+        max-width: 100%;
+    }
+    
+    .md-listview-rendering-data .mbsc-lv-ic-s {
+        color: #e0e040;
+    }
+    
+    .md-listview-rendering-data .md-listview-rendering-btn {
+        position: absolute;
+        top: 21px;
+        z-index: 1;
+        transition: background-color .3s ease-out;
+    }
+    
+    .mbsc-ltr .md-listview-rendering-data .md-listview-rendering-btn {
+        right: 12px;
+    }
+    
+    .mbsc-rtl .md-listview-rendering-data .md-listview-rendering-btn {
+        left: 12px;
+    }
+    
+    .md-listview-rendering-data .md-demo-listview-rendering {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    </style>
+
+</head>
+<body>
+
+<div mbsc-page class="demo-listview-rendering">
+    <div class="md-listview-rendering-data">
+        <div id="demo-listview-rendering"></div>
+        <div class="md-demo-listview-rendering">
+            <ul id="demo-listview-rendering-data" class="mbsc-cloak"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    mobiscroll.settings = {
+        lang: 'en',                                // Specify language like: lang: 'pl' or omit setting to use default
+        theme: 'ios',                              // Specify theme like: theme: 'ios' or omit setting to use default
+        themeVariant: 'dark'                       // More info about themeVariant: https://docs.mobiscroll.com/4-10-3/javascript/eventcalendar#opt-themeVariant
+    };
+    
+    var ul = document.getElementById('demo-listview-rendering-data'),
+        cal,
+        list,
+        buttons,
+        events = [],
+        star = document.createElement('span'),
+        formatDate = mobiscroll.util.datetime.formatDate;
+    
+    star.className = 'mbsc-ic mbsc-ic-star3 md-listview-rendering-icon';
+    
+    list = mobiscroll.listview('#demo-listview-rendering-data', {
+        context: '#demo-listview-rendering-data',  // More info about context: https://docs.mobiscroll.com/4-10-3/javascript/eventcalendar#opt-context
+        stages: {
+            left: [{
+                color: '#55ad55',
+                text: 'Interested',
+                confirm: true,
+                action: function (event, inst) {
+                    var el = event.target.getElementsByClassName('md-listview-rendering-icon')[0];
+    
+                    el.classList.remove('md-hide-star');
+    
+                    mobiscroll.toast({
+                        message: 'Interested'
+                    });
+                }
+            }],
+            right: [{
+                color: '#b93838',
+                text: 'Not Interested',
+                confirm: true,
+                action: function (event, inst) {
+                    var id = event.target.getAttribute('data-id'),
+                        index = events.findIndex(item => item.id == id);
+    
+                    // remove event from listview
+                    inst.remove(id, 'left', function () {
+                        // remove event from events array
+                        events.splice(index, 1);
+                        // remove event from calendar
+                        cal.removeEvent([id - 1]);
+                    });
+    
+                    mobiscroll.toast({
+                        message: 'Not Interested'
+                    });
+                }
+            }]
+        }
+    });
+    
+    cal = mobiscroll.eventcalendar('#demo-listview-rendering', {
+        display: 'inline',                         // Specify display mode like: display: 'bottom' or omit setting to use default
+        firstDay: 1,                               // More info about firstDay: https://docs.mobiscroll.com/4-10-3/javascript/eventcalendar#localization-firstDay
+        view: {                                    // More info about view: https://docs.mobiscroll.com/4-10-3/javascript/eventcalendar#opt-view
+            calendar: {
+                type: 'week'
+            }
+        },
+        onPageLoaded: function (event, inst) {     // More info about onPageLoaded: https://docs.mobiscroll.com/4-10-3/javascript/eventcalendar#event-onPageLoaded
+            var first = event.firstDay,
+                last = new Date(first.getFullYear(), first.getMonth(), first.getDate() + 7);
+    
+            getEvents(first, last);
+        },
+        onPosition: function (event, inst) {       // More info about onPosition: https://docs.mobiscroll.com/4-10-3/javascript/eventcalendar#event-onPosition
+            var eventList = document.getElementsByClassName('md-demo-listview-rendering')[0],
+                top = eventList.getBoundingClientRect().top + document.body.scrollTop;
+    
+            setTimeout(function () {
+                eventList.style.height = window.innerHeight - top + 'px';
+            });
+        },
+        onDayChange: function (event, inst) {      // More info about onDayChange: https://docs.mobiscroll.com/4-10-3/javascript/eventcalendar#event-onDayChange
+            // find all day headers
+            var headers = ul.querySelectorAll('li[data-role="list-divider"]'),
+                formattedDate = formatDate('yy/mm/dd', event.date),
+                day;
+    
+            for (var i = 0; i < headers.length; i++) {
+                if (headers[i].innerHTML == formattedDate) {
+                    day = headers[i];
+                }
+            }
+    
+            if (day !== undefined) {
+                setTimeout(function () {
+                    day.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
+        }
+    });
+    
+    mobiscroll.util.getJson('https://trial.mobiscroll.com/events-listview/', function (arr) {
+        events = arr;
+        cal.setEvents(events);
+    }, 'jsonp');
+    
+    function getEvents(first, last) {
+        var i, item, curr, prev,
+            dividers = ul.querySelectorAll('li[data-role="list-divider"]'),
+            btn = '<button mbsc-button class="mbsc-btn-info md-listview-rendering-btn">View</button>';
+    
+        list.settings.animateAddRemove = false;
+    
+        // remove all events
+        for (i = 0; i < events.length; ++i) {
+            list.remove(events[i].id);
+        }
+    
+        // remove dividers
+        for (i = 0; i < dividers.length; ++i) {
+            list.remove(dividers[i]);
+        }
+    
+        // add current events
+        for (i = 0; i < events.length; ++i) {
+            item = events[i];
+            item.d = item.divider ? new Date(item.date) : new Date(item.d);
+    
+            if (item.d >= first && item.d < last) {
+                curr = item.d.getDay();
+                prev = events[i - 1] ? events[i - 1].d.getDay() : -1;
+    
+                // add divider if needed
+                if (curr != prev) {
+                    list.add('divider-' + i, mobiscroll.$('<li data-role="list-divider">' + formatDate('yy/mm/dd', item.d) + '</li>'));
+                }
+    
+                list.add(item.id,
+                    '<div class="md-listview-rendering-content">' +
+                    '<div class="md-listview-rendering-date">' + formatDate('D d M h:iia', item.d) + '</div>' + btn +
+                    '<div class="md-listview-rendering-title mbsc-bold">' + item.title +
+                    '<span class="mbsc-ic mbsc-ic-star3 md-listview-rendering-icon ' + (!item.starred ? 'md-hide-star' : '') + '"></span>' + '</div>' +
+                    '<div class="md-listview-rendering-loc mbsc-italic">' + item.loc + '</div>' +
+                    '</div>' +
+                    '<div mbsc-card class="md-listview-rendering-card">' +
+                    '<img src="https://img.mobiscroll.com/demos/' + item.img + '" draggable="false">' +
+                    '</div>'
+                );
+            }
+        }
+    
+        // Init buttons and cards
+        ul.dispatchEvent(new Event('mbsc-enhance', { bubbles: true }));
+    
+        list.settings.animateAddRemove = true;
+    }
+    
+    ul.addEventListener('click', function (e) {
+        if (e.target.classList.contains('md-listview-rendering-btn')) {
+            mobiscroll.toast({
+                message: 'View clicked'
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
